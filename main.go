@@ -1,14 +1,33 @@
 package main
 
 import (
+	"code.google.com/p/cookiejar"
+	"errors"
 	"flag"
 	"fmt"
 	irc "github.com/fluffle/goirc/client"
+	"net/http"
 	"regexp"
 )
 
 var host *string = flag.String("host", "irc.mozilla.org", "IRC server")
 var channel *string = flag.String("channel", "#foo", "IRC channel")
+
+func isPrivate(s string) bool {
+	client := &http.Client{
+		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			if r.URL.Path == "/ep/account/sign-in" {
+				return errors.New("Asked to sign in. Pad is not public.")
+			}
+			return nil
+		},
+		Jar: cookiejar.NewJar(false),
+	}
+
+	_, err := client.Get(s)
+
+	return (err != nil)
+}
 
 func main() {
 	flag.Parse()
@@ -28,7 +47,15 @@ func main() {
 	c.AddHandler("PRIVMSG",
 		func(conn *irc.Conn, line *irc.Line) {
 			if match, err := regexp.MatchString(`https?://id\.etherpad\.mozilla\.org/.`, line.Args[1]); match && err == nil {
-				c.Privmsg(line.Args[0], line.Nick + ": Please make sure that etherpad is public. Thanks!")
+				re := regexp.MustCompile(`https?://id\.etherpad\.mozilla\.org/\S+`)
+				pad := re.FindString(line.Args[1])
+				if len(pad) > 0 {
+					go func() {
+						if isPrivate(pad) {
+							c.Privmsg(line.Args[0], line.Nick+": Please make sure that etherpad is public. Thanks!")
+						}
+					}()
+				}
 			}
 		})
 
