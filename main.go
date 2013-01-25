@@ -12,6 +12,7 @@ import (
 
 var host *string = flag.String("host", "irc.mozilla.org", "IRC server")
 var channel *string = flag.String("channel", "#foo", "IRC channel")
+var nick *string = flag.String("nick", "etherbot", "IRC nickname")
 
 func isPrivate(s string) bool {
 	client := &http.Client{
@@ -33,7 +34,7 @@ func main() {
 	flag.Parse()
 
 	// create new IRC connection
-	c := irc.SimpleClient("etherbot", "etherbot", "the etherpad robot")
+	c := irc.SimpleClient(*nick, "etherbot", "the etherpad robot")
 	// c.EnableStateTracking()
 	c.AddHandler("connected",
 		func(conn *irc.Conn, line *irc.Line) { conn.Join(*channel) })
